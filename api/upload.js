@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
     fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
     fd.append('image', imgBuf, { filename: 'upload.' + ext, contentType: mime, knownLength: imgBuf.length });
-    fd.append('croppedImage', body.image.replace(/^data:image\/[a-zA-Z+]+;base64,/, ''));
+    fd.append('croppedImage', body.image);
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
     fd.append('description', body.description || 'Photo');
     fd.append('author', body.author || 'Dovalent');
@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
 
     if (uploadRes.status !== 302) {
       const errText = await uploadRes.text();
-      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 300) });
+      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 1000) });
     }
 
     const newRes = await fetch(BASE + '/gallery', { headers: { Cookie: sess } });
