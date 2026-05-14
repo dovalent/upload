@@ -56,12 +56,20 @@ module.exports = async (req, res) => {
     const mime = b64Match[1];
     const ext = mime.includes('png') ? 'png' : 'jpg';
 
-    // Build form - empty image file + croppedImage with data URI
+    // Tiny valid 1x1 JPEG for the image field (server needs a valid file)
+    const tinyJpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB' +
+      'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEB' +
+      'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIA' +
+      'AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEA' +
+      'AAAAAAAAAAAAAAAAAAAB/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=',
+      'base64'
+    );
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const fd = new FormData();
     fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
-    fd.append('image', Buffer.from(''), { filename: 'upload.' + ext, contentType: mime, knownLength: 0 });
+    fd.append('image', tinyJpeg, { filename: 'upload.jpg', contentType: 'image/jpeg', knownLength: tinyJpeg.length });
     fd.append('croppedImage', body.image);
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
     fd.append('description', body.description || 'Photo');
