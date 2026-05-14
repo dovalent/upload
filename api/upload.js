@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
       filename: 'photo.' + ext,
       contentType: mime,
     });
-    fd.append('croppedImage', '');
+    fd.append('croppedImage', base64Match[2]);
     fd.append('caption', (body.caption || body.title || 'Photo').substring(0, 100));
     fd.append('description', (body.description || body.caption || body.title || 'Photo').substring(0, 500));
     fd.append('author', body.author || 'Dovalent');
