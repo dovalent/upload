@@ -67,7 +67,13 @@ module.exports = async (req, res) => {
     upHeaders['Referer'] = BASE + '/gallery/upload';
     upHeaders['Origin'] = BASE;
     upHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-
+    upHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
+    upHeaders['sec-fetch-dest'] = 'document';
+    upHeaders['sec-fetch-mode'] = 'navigate';
+    upHeaders['sec-fetch-site'] = 'same-origin';
+    upHeaders['sec-fetch-user'] = '?1';
+    upHeaders['upgrade-insecure-requests'] = '1';
+    upHeaders['cache-control'] = 'max-age=0';
     const uploadRes = await fetch(BASE + '/gallery/save', {
       method: 'POST', headers: upHeaders, body: fd, redirect: 'manual',
     });
