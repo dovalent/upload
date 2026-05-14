@@ -50,14 +50,13 @@ module.exports = async (req, res) => {
     const tokenMatch = upHtml.match(/name="_token"\s+value="([^"]+)"/);
     if (!tokenMatch) return res.status(200).json({ ok: false, error: 'Token not found' });
 
-    // Decode image for the file field
+    // Decode image
     const b64Match = body.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
     if (!b64Match) return res.status(200).json({ ok: false, error: 'Invalid image' });
     const mime = b64Match[1];
-    const imgBuf = Buffer.from(b64Match[2], 'base64');
     const ext = mime.includes('png') ? 'png' : 'jpg';
 
-    // Build form - EXACT same order as CMS browser
+    // Build form - empty image file + croppedImage with data URI
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const fd = new FormData();
     fd.setBoundary(boundary);
@@ -71,7 +70,7 @@ module.exports = async (req, res) => {
     fd.append('contributor[]', '');
     fd.append('source', body.source || '');
 
-    // Headers - match browser exactly
+    // Headers
     const upHeaders = fd.getHeaders();
     upHeaders['Cookie'] = sess;
     upHeaders['Referer'] = BASE + '/gallery/upload';
@@ -87,12 +86,8 @@ module.exports = async (req, res) => {
     upHeaders['accept-language'] = 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7';
     upHeaders['dnt'] = '1';
 
-    // Send as buffer (not stream)
     const fdBuffer = fd.getBuffer();
     upHeaders['Content-Length'] = String(fdBuffer.length);
-
-    // Debug: log size
-    console.log('Upload body size:', fdBuffer.length, 'bytes');
 
     const uploadRes = await fetch(BASE + '/gallery/save', {
       method: 'POST', headers: upHeaders, body: fdBuffer, redirect: 'manual',
@@ -101,14 +96,7 @@ module.exports = async (req, res) => {
 
     if (uploadRes.status !== 302) {
       const errText = await uploadRes.text();
-      return res.status(200).json({ 
-        ok: false, 
-        error: 'Status ' + uploadRes.status, 
-        detail: errText.substring(0, 1000),
-        bodySize: fdBuffer.length,
-        imageSize: imgBuf.length,
-        croppedSize: body.image.length
-      });
+      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 1000) });
     }
 
     // Find new image ID
@@ -120,10 +108,19 @@ module.exports = async (req, res) => {
     let newId = diff.length > 0 ? diff[0] : '';
     if (!newId && newIds.length) newId = String(Math.max(...newIds.map(Number)));
 
+    // Find URL - look for thumb.viva.id URL near the detailImage ID
     let newUrl = '';
     if (newId) {
-      const m = newHtml.match(new RegExp('<img[^>]*src="([^"]*)"[\\s\\S]*?detailImage_' + newId));
-      if (m) newUrl = m[1];
+      var p1 = new RegExp('src="(https://thumb\\.viva\\.id[^"]*)"[\\s\\S]{0,500}?detailImage_' + newId);
+      var m1 = newHtml.match(p1);
+      if (m1) {
+        newUrl = m1[1];
+      } else {
+        // Fallback: find any card-body img near this ID
+        var p2 = new RegExp('card-body[\\s\\S]{0,300}?<img[^>]*src="([^"]*)"[\\s\\S]{0,300}?detailImage_' + newId);
+        var m2 = newHtml.match(p2);
+        if (m2) newUrl = m2[1];
+      }
     }
 
     return res.status(200).json({ ok: !!newId, id: newId, url: newUrl, session: sess });
