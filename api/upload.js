@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
     const fd = new FormData();
     fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
-    fd.append('image', Buffer.alloc(0), { filename: 'upload.' + ext, contentType: mime, knownLength: 0 });
+    fd.append('image', imgBuf, { filename: 'upload.' + ext, contentType: mime, knownLength: imgBuf.length });
     fd.append('croppedImage', body.image);
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
     fd.append('description', body.description || 'Photo');
