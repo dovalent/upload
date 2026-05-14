@@ -102,10 +102,15 @@ module.exports = async (req, res) => {
     });
     sess = combineCookies(sess, grabCookies(uploadRes));
 
-    if (uploadRes.status !== 302) {
+    // 302 = redirect (normal success), 500 = server crash after saving (still works!)
+    // Either way, check gallery for new image
+    if (uploadRes.status !== 302 && uploadRes.status !== 500) {
       const errText = await uploadRes.text();
-      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 1000) });
+      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 500) });
     }
+
+    // Wait a moment for server to finish saving
+    await new Promise(r => setTimeout(r, 1000));
 
     // Find new image ID
     const newRes = await fetch(BASE + '/gallery', { headers: { Cookie: sess } });
@@ -116,7 +121,7 @@ module.exports = async (req, res) => {
     let newId = diff.length > 0 ? diff[0] : '';
     if (!newId && newIds.length) newId = String(Math.max(...newIds.map(Number)));
 
-    // Find URL - look for thumb.viva.id URL near the detailImage ID
+    // Find URL
     let newUrl = '';
     if (newId) {
       var p1 = new RegExp('src="(https://thumb\\.viva\\.id[^"]*)"[\\s\\S]{0,500}?detailImage_' + newId);
@@ -124,7 +129,6 @@ module.exports = async (req, res) => {
       if (m1) {
         newUrl = m1[1];
       } else {
-        // Fallback: find any card-body img near this ID
         var p2 = new RegExp('card-body[\\s\\S]{0,300}?<img[^>]*src="([^"]*)"[\\s\\S]{0,300}?detailImage_' + newId);
         var m2 = newHtml.match(p2);
         if (m2) newUrl = m2[1];
