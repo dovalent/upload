@@ -74,8 +74,10 @@ module.exports = async (req, res) => {
     upHeaders['sec-fetch-user'] = '?1';
     upHeaders['upgrade-insecure-requests'] = '1';
     upHeaders['cache-control'] = 'max-age=0';
+    const fdBuffer = fd.getBuffer();
+    upHeaders['Content-Length'] = String(fdBuffer.length);
     const uploadRes = await fetch(BASE + '/gallery/save', {
-      method: 'POST', headers: upHeaders, body: fd, redirect: 'manual',
+      method: 'POST', headers: upHeaders, body: fdBuffer, redirect: 'manual',
     });
     sess = combineCookies(sess, grabCookies(uploadRes));
 
