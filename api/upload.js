@@ -63,6 +63,8 @@ module.exports = async (req, res) => {
     fd.append('description', body.description || 'Photo');
     fd.append('author', body.author || 'Dovalent');
     fd.append('source', body.source || '');
+    fd.append('checkbox_contributor', '1');
+    fd.append('contributor[]', '');
 
     const upHeaders = fd.getHeaders();
     upHeaders['Cookie'] = sess;
