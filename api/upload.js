@@ -37,28 +37,32 @@ module.exports = async (req, res) => {
     const BASE = SITES[siteKey] || SITES.banyuwangi;
     let sess = body.session;
 
+    // Get old gallery IDs
     const listRes = await fetch(BASE + '/gallery', { headers: { Cookie: sess } });
     const listHtml = await listRes.text();
     sess = combineCookies(sess, grabCookies(listRes));
     const oldIds = [...listHtml.matchAll(/detailImage_(\d+)/g)].map(m => m[1]);
 
+    // Get upload token
     const upRes = await fetch(BASE + '/gallery/upload', { headers: { Cookie: sess } });
     const upHtml = await upRes.text();
     sess = combineCookies(sess, grabCookies(upRes));
     const tokenMatch = upHtml.match(/name="_token"\s+value="([^"]+)"/);
     if (!tokenMatch) return res.status(200).json({ ok: false, error: 'Token not found' });
 
+    // Decode image for the file field
     const b64Match = body.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
     if (!b64Match) return res.status(200).json({ ok: false, error: 'Invalid image' });
     const mime = b64Match[1];
     const imgBuf = Buffer.from(b64Match[2], 'base64');
     const ext = mime.includes('png') ? 'png' : 'jpg';
 
+    // Build form - EXACT same order as CMS browser
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const fd = new FormData();
     fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
-    fd.append('image', imgBuf, { filename: 'upload.' + ext, contentType: mime, knownLength: imgBuf.length });
+    fd.append('image', Buffer.alloc(0), { filename: 'upload.' + ext, contentType: mime, knownLength: 0 });
     fd.append('croppedImage', body.image);
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
     fd.append('description', body.description || 'Photo');
@@ -67,11 +71,12 @@ module.exports = async (req, res) => {
     fd.append('contributor[]', '');
     fd.append('source', body.source || '');
 
+    // Headers - match browser exactly
     const upHeaders = fd.getHeaders();
     upHeaders['Cookie'] = sess;
     upHeaders['Referer'] = BASE + '/gallery/upload';
     upHeaders['Origin'] = BASE;
-    upHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+    upHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36';
     upHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
     upHeaders['sec-fetch-dest'] = 'document';
     upHeaders['sec-fetch-mode'] = 'navigate';
@@ -79,8 +84,16 @@ module.exports = async (req, res) => {
     upHeaders['sec-fetch-user'] = '?1';
     upHeaders['upgrade-insecure-requests'] = '1';
     upHeaders['cache-control'] = 'max-age=0';
+    upHeaders['accept-language'] = 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7';
+    upHeaders['dnt'] = '1';
+
+    // Send as buffer (not stream)
     const fdBuffer = fd.getBuffer();
     upHeaders['Content-Length'] = String(fdBuffer.length);
+
+    // Debug: log size
+    console.log('Upload body size:', fdBuffer.length, 'bytes');
+
     const uploadRes = await fetch(BASE + '/gallery/save', {
       method: 'POST', headers: upHeaders, body: fdBuffer, redirect: 'manual',
     });
@@ -88,9 +101,17 @@ module.exports = async (req, res) => {
 
     if (uploadRes.status !== 302) {
       const errText = await uploadRes.text();
-      return res.status(200).json({ ok: false, error: 'Status ' + uploadRes.status, detail: errText.substring(0, 1000) });
+      return res.status(200).json({ 
+        ok: false, 
+        error: 'Status ' + uploadRes.status, 
+        detail: errText.substring(0, 1000),
+        bodySize: fdBuffer.length,
+        imageSize: imgBuf.length,
+        croppedSize: body.image.length
+      });
     }
 
+    // Find new image ID
     const newRes = await fetch(BASE + '/gallery', { headers: { Cookie: sess } });
     const newHtml = await newRes.text();
     sess = combineCookies(sess, grabCookies(newRes));
