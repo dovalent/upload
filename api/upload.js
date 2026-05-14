@@ -54,7 +54,9 @@ module.exports = async (req, res) => {
     const imgBuf = Buffer.from(b64Match[2], 'base64');
     const ext = mime.includes('png') ? 'png' : 'jpg';
 
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const fd = new FormData();
+    fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
     fd.append('image', imgBuf, { filename: 'upload.' + ext, contentType: mime, knownLength: imgBuf.length });
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
