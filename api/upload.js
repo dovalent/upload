@@ -59,12 +59,13 @@ module.exports = async (req, res) => {
     fd.setBoundary(boundary);
     fd.append('_token', tokenMatch[1]);
     fd.append('image', imgBuf, { filename: 'upload.' + ext, contentType: mime, knownLength: imgBuf.length });
+    fd.append('croppedImage', body.image);
     fd.append('caption', (body.caption || 'Photo').substring(0, 100));
     fd.append('description', body.description || 'Photo');
     fd.append('author', body.author || 'Dovalent');
-    fd.append('source', body.source || '');
     fd.append('checkbox_contributor', '1');
     fd.append('contributor[]', '');
+    fd.append('source', body.source || '');
 
     const upHeaders = fd.getHeaders();
     upHeaders['Cookie'] = sess;
